@@ -1,0 +1,56 @@
+version: v1
+type: flow
+steps:
+  - type: task
+    name: copy_files
+    resourceArn: !Ref oss_batch_copy/copy_objects
+    retry:
+      - errors:
+        - FC.ResourceThrottled
+        - FC.ResourceExhausted
+        - FC.InternalServerError
+        - FC.Unknown
+        - FnF.TaskTimeout
+        - BatchProcessError
+        intervalSeconds: 1
+        maxAttempts: 10
+        multiplier: 1.5
+        maxIntervalSeconds: 10
+        
+  - type: choice
+    name: has_more_files
+    inputMappings:
+      - target: offset_bytes
+        source: $local.offset_bytes
+      - target: event_id
+        source: $context.step.eventId
+    choices:
+      - condition: $.event_id >= 4000
+        goto: start_sub_flow_execution
+      - condition: $.offset_bytes != -1
+        goto: copy_files
+  - type: succeed
+    name: succeed
+  - type: task
+    name: start_sub_flow_execution
+    resourceArn: acs:fnf:::flow/copy_files_flow
+    pattern: sync
+    inputMappings:
+      - target: region
+        source: $input.region
+      - target: bucket
+        source: $input.bucket
+      - target: dest_prefix
+        source: $input.dest_prefix
+      - target: offset_bytes
+        source: $local.offset_bytes
+      - target: chunk_bytes
+        source: $input.chunk_bytes
+      - target: index_file_key
+        source: $input.index_file_key
+      - target: storage_class
+        source: $input.storage_class
+      - target: files_copied_total
+        source: $local.files_copied_total
+    serviceParams:
+      Input: $

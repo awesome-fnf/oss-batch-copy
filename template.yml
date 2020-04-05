@@ -1,0 +1,27 @@
+ROSTemplateFormatVersion: '2015-09-01'
+Transform: 'Aliyun::Serverless-2018-04-03'
+Resources:
+  oss_batch_copy:
+    Type: 'Aliyun::Serverless::Service'
+    Properties:
+      Description: This is oss_batch_copy service
+      Policies:
+        - AliyunOSSFullAccess
+    copy_objects:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.handler
+        Runtime: python3
+        Timeout: 60
+        MemorySize: 512
+        CodeUri: functions/copy_objects
+  copy_files_flow:
+    Type: 'Aliyun::Serverless::Flow'
+    DependsOn:
+      - oss_batch_copy
+    Properties:
+      Description: 'Copy OSS files in batches'
+      Policies:
+        - AliyunFCInvocationAccess
+        - AliyunFnFFullAccess
+      DefinitionUri: flows/copy-oss-files.flow.yml
